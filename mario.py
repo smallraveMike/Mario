@@ -25,11 +25,11 @@ grid =     [[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
             [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,2,0,0,0,0,0,0,0,0],
             [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,2,0,0,0,0,0,0,0,0],
             [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-            [0,0,0,0,0,0,0,0,2,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-            [0,0,0,0,0,0,0,4,1,1,1,0,0,0,0,0,'t',0,0,0,0,0,0,2,0,0,0,0,0,0,0,4,0,0,0,0,0,4,0,0,4,0,0],
-            [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,'p',0,0,0,0,0,2,1,2,0,0,0,0,0,0,0,0,0,'t'],
-            [0,0,0,0,'h',0,0,0,0,3,'d',0,0,0,0,0,'p',0,0,0,0,0,2,'h',0,0,2,3,0,'d',0,0,0,0,'p',0,0,0,1,0,0,0,0,5,0,0,0,1],
-            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]]
+            [0,0,0,0,0,0,2,0,2,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+            [0,0,0,0,0,0,1,4,1,1,1,0,0,0,0,0,'t',0,'t',0,0,0,0,2,0,0,0,0,0,0,0,4,0,0,0,0,0,4,0,0,4,0,0],
+            [0,2,0,'c',0,0,0,0,0,0,0,0,0,0,0,0,'p',0,'p',0,0,0,2,1,2,0,0,0,0,0,0,0,0,0,'t'],
+            [0,0,0,0,'h',0,0,0,0,3,'d',0,0,0,0,0,'p',0,'p',0,0,0,2,'h',0,0,2,3,0,'d',0,0,0,0,'p',0,0,0,1,0,0,0,0,5,0,0,0,1],
+            [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]]
 
 class ItemBlock:
     def __init__(self,item,amt,x,y,type,mario):
@@ -41,6 +41,7 @@ class ItemBlock:
         self.smackY = 0
         self.upMode = False
         self.mario = mario
+        self.showItem = True
         self.snd_coin = pygame.mixer.Sound('snd_coin.mp3')
         self.myHitbox = Rect(self.x, self.y, 16, 16)
         self.empty = True
@@ -56,7 +57,7 @@ class ItemBlock:
             self.itemSprite = [self.itemSprite1,self.itemSprite1,self.itemSprite2,self.itemSprite2,self.itemSprite3,self.itemSprite3,self.itemSprite4,self.itemSprite4,self.itemSprite4]
 
 def updateBlocks(block):
-    block.myHitbox = Rect(block.x-block.mario.screen_scroll, block.y, 16, 16)
+    block.myHitbox = Rect(block.x-block.mario.screen_scroll, block.y+block.smackY, 16, 16)
     gameDisplay.blit(block.mySprite, ((block.x)-block.mario.screen_scroll,((block.y)+block.smackY)))
     #pygame.draw.rect(gameDisplay,(124,24,124),block.myHitbox)
     if block.upMode:
@@ -66,20 +67,25 @@ def updateBlocks(block):
             block.upMode = False    
     elif block.smackY < 0:
         block.smackY += 1
-    if block.amount > 0:
-        if ((block.mario.ySpeed < 0) & (pygame.Rect.colliderect(block.myHitbox, block.mario.player_hitbox_top))):
-            block.snd_coin.play(0)
+    
+    if ((block.mario.ySpeed < 0) & (pygame.Rect.colliderect(block.myHitbox, block.mario.player_hitbox_top))):
             block.upMode = True
             block.mario.snd_bump.play(0)
             block.mario.ySpeed = 0
             block.amount-=1
-            block.mario.coins+=1
-            block.mario.score+=100
+            if block.amount >= 0:
+                block.snd_coin.play(0)
+                block.mario.coins+=1
+                block.mario.score+=100
+            
+
     elif ((block.mario.ySpeed < 0) & (pygame.Rect.colliderect(block.myHitbox, block.mario.player_hitbox_top))):
         block.mario.ySpeed = 0
         block.mario.snd_bump.play(0)
     if block.smackY != 0:
-        gameDisplay.blit(block.itemSprite[abs(block.smackY)], ((block.x)-block.mario.screen_scroll+4,((block.y)-16+(block.smackY*4))))
+        if block.amount >= 0:
+            gameDisplay.blit(block.itemSprite[abs(block.smackY)], ((block.x)-block.mario.screen_scroll+4,((block.y)-16+(block.smackY*4))))
+    
 
     
 
@@ -131,7 +137,7 @@ def updateMario(self):
         self.ticks = 0
     gameDisplay.blit(self.mySprite, (self.myX,self.myY))
     #pygame.draw.rect(gameDisplay,(0,0,0),self.player_hitbox)
-    pygame.draw.rect(gameDisplay,(55,55,55),self.player_hitbox_left)
+    #pygame.draw.rect(gameDisplay,(55,55,55),self.player_hitbox_left)
     if self.ySpeed < -1 *self.jumpHeight:
         self.ySpeed = -1* self.jumpHeight
 
@@ -254,9 +260,9 @@ def levelGrid(screen_scroll):
     levelRecs.append(Rect(0,0,1,300))
     for Y in range(len(grid)):
         for X in range(len(grid[Y])):
-            if grid[Y][X] == 1:
-                gameDisplay.blit(spr_brick, ((X * 16)-screen_scroll,((Y *16))))         
-                levelRecs.append(Rect((X*16)-screen_scroll, Y*16, 16, 16))
+            #if grid[Y][X] == 1:
+                #gameDisplay.blit(spr_brick, ((X * 16)-screen_scroll,((Y *16))))         
+                #levelRecs.append(Rect((X*16)-screen_scroll, Y*16, 16, 14))
             if grid[Y][X] == 't':
                 gameDisplay.blit(spr_pipe_top, ((X * 16)-screen_scroll-16,((Y *16))))         
                 levelRecs.append(Rect((X*16)-screen_scroll-16, Y*16, 32, 16))
@@ -281,9 +287,15 @@ def coinGrid(mario):
     for Y in range(len(grid)):
         for X in range(len(grid[Y])):
             if grid[Y][X] == 2:
+                #pygame.draw.rect(gameDisplay,(55,55,55),Rect((X*16)-mario.screen_scroll, (Y*16) + 8, 8, 8))
+                for b in blockRec:
+                    if pygame.Rect.colliderect(b.myHitbox, Rect((X*16)-mario.screen_scroll, (Y*16) + 8, 8, 8)):
+                        grid[Y][X] = 0
+                        snd_coin.play(0)
+                        mario.coins +=1
+                        mario.score+=100
                 if pygame.Rect.colliderect(mario.player_hitbox, Rect((X*16)-mario.screen_scroll, Y*16, 8, 8)):
                     grid[Y][X] = 0
-                    snd_coin.stop()
                     snd_coin.play(0)
                     mario.coins +=1
                     mario.score+=100
@@ -327,8 +339,8 @@ def updateKoopa(self):
     self.hb_leftside = Rect((16* self.X)-1-self.mario.screen_scroll, (16* self.Y)+8,3,1)
     self.hb_rightside = Rect((16*self.X)+17-self.mario.screen_scroll, (16*self.Y)+8,3,1)
 
-    for loc in levelRecs:
-            if ((pygame.Rect.colliderect(self.hb_rightside,loc)) | (pygame.Rect.colliderect(self.hb_leftside,loc))):
+    for b in blockRec:
+            if ((pygame.Rect.colliderect(self.hb_rightside,b.myHitbox)) | (pygame.Rect.colliderect(self.hb_leftside,b.myHitbox))):
                 self.moveLeft = not self.moveLeft
                 self.kickSpeed = self.kickSpeed * -1
                 self.kickTimer = 60
@@ -337,16 +349,16 @@ def updateKoopa(self):
 
     if self.moveLeft:
         canCont = False
-        for loc in levelRecs:
-            if pygame.Rect.colliderect(self.hb_left,loc):
+        for loc in blockRec:
+            if pygame.Rect.colliderect(self.hb_left,loc.myHitbox):
                 canCont = True
         if not canCont:
             self.moveLeft = False
 
     if not self.moveLeft:
         canCont = False
-        for loc in levelRecs:
-            if pygame.Rect.colliderect(self.hb_right,loc):
+        for loc in blockRec:
+            if pygame.Rect.colliderect(self.hb_right,loc.myHitbox):
                 canCont = True
         if not canCont:
             self.moveLeft = True
@@ -391,7 +403,7 @@ def updateKoopa(self):
                                 self.mario.dead = True
                                 self.mario.snd_die.play(0)
                         elif ((not self.mario.dead) & (self.kickSpeed == 0)):
-                            print("kick!")
+                            self.snd_kick.play(0)
                             if self.mario.accel > 0:
                                 self.kickSpeed = .15
                             elif self.mario.accel < 0:
@@ -455,22 +467,25 @@ def updateGoomb(self):
     #pygame.draw.rect(gameDisplay,(255,255,255),self.hb_left)
     #pygame.draw.rect(gameDisplay,(0,255,0),self.hb_right)
 
-    for loc in levelRecs:
-            if ((pygame.Rect.colliderect(self.hb_rightside,loc)) | (pygame.Rect.colliderect(self.hb_leftside,loc))):
+    for b in blockRec:
+            if ((pygame.Rect.colliderect(self.hb_rightside,b.myHitbox)) | (pygame.Rect.colliderect(self.hb_leftside,b.myHitbox))):
+                self.moveLeft = not self.moveLeft
+    for b in levelRecs:
+            if ((pygame.Rect.colliderect(self.hb_rightside,b)) | (pygame.Rect.colliderect(self.hb_leftside,b))):
                 self.moveLeft = not self.moveLeft
 
     if self.moveLeft:
         canCont = False
-        for loc in levelRecs:
-            if pygame.Rect.colliderect(self.hb_left,loc):
+        for b in blockRec:
+            if pygame.Rect.colliderect(self.hb_left,b.myHitbox):
                 canCont = True
         if not canCont:
             self.moveLeft = False
 
     if not self.moveLeft:
         canCont = False
-        for loc in levelRecs:
-            if pygame.Rect.colliderect(self.hb_right,loc):
+        for b in blockRec:
+            if pygame.Rect.colliderect(self.hb_right,b.myHitbox):
                 canCont = True
         if not canCont:
             self.moveLeft = True
@@ -524,6 +539,8 @@ def initalizeBlocks(mario):
         for X in range(len(grid[Y])):
             if grid[Y][X] == 4:        
                 blockRec.append(ItemBlock('coin',5,X*16,Y*16,'brick',mario))
+            if grid[Y][X] == 1:        
+                blockRec.append(ItemBlock('coin',0,X*16,Y*16,'brick',mario))
 
 def main():
     tickDown = 0
