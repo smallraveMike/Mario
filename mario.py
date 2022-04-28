@@ -25,7 +25,7 @@ grid =     [[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
             [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,2,0,0,0,0,0,0,0,0],
             [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,2,0,0,0,0,0,0,0,0],
             [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-            [0,0,0,0,0,0,2,0,2,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+            [0,0,0,0,0,0,2,3,2,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
             [0,0,0,0,0,0,1,4,1,1,1,0,0,0,0,0,'t',0,'t',0,0,0,0,2,0,0,0,0,0,0,0,4,0,0,0,0,0,4,0,0,4,0,0],
             [0,2,0,'c',0,0,0,0,0,0,0,0,0,0,0,0,'p',0,'p',0,0,0,2,1,2,0,0,0,0,0,0,0,0,0,'t'],
             [0,0,0,0,'h',0,0,0,0,3,'d',0,0,0,0,0,'p',0,'p',0,0,0,2,'h',0,0,2,3,0,'d',0,0,0,0,'p',0,0,0,1,0,0,0,0,5,0,0,0,1],
@@ -40,6 +40,7 @@ class ItemBlock:
         self.tickTest = 0
         self.smackY = 0
         self.upMode = False
+        self.hbSmack = 0
         self.mario = mario
         self.showItem = True
         self.snd_coin = pygame.mixer.Sound('snd_coin.mp3')
@@ -57,7 +58,7 @@ class ItemBlock:
             self.itemSprite = [self.itemSprite1,self.itemSprite1,self.itemSprite2,self.itemSprite2,self.itemSprite3,self.itemSprite3,self.itemSprite4,self.itemSprite4,self.itemSprite4]
 
 def updateBlocks(block):
-    block.myHitbox = Rect(block.x-block.mario.screen_scroll, block.y+block.smackY, 16, 16)
+    block.myHitbox = Rect(block.x-block.mario.screen_scroll, block.y+block.hbSmack, 16, 16)
     gameDisplay.blit(block.mySprite, ((block.x)-block.mario.screen_scroll,((block.y)+block.smackY)))
     #pygame.draw.rect(gameDisplay,(124,24,124),block.myHitbox)
     if block.upMode:
@@ -85,7 +86,11 @@ def updateBlocks(block):
     if block.smackY != 0:
         if block.amount >= 0:
             gameDisplay.blit(block.itemSprite[abs(block.smackY)], ((block.x)-block.mario.screen_scroll+4,((block.y)-16+(block.smackY*4))))
-    
+
+    if block.smackY == -1:
+        block.hbSmack = -8
+    else: 
+        block.hbSmack = 0
 
     
 
@@ -193,6 +198,9 @@ def updateMario(self):
             if self.ySpeed < self.weight:
                 self.ySpeed += .1
 
+    if self.myX <= 0:
+        self.myX = 0
+
     self.grounded = False
     for loc in levelRecs:
         if pygame.Rect.colliderect(self.player_hitbox_bot, loc):
@@ -289,12 +297,12 @@ def coinGrid(mario):
             if grid[Y][X] == 2:
                 #pygame.draw.rect(gameDisplay,(55,55,55),Rect((X*16)-mario.screen_scroll, (Y*16) + 8, 8, 8))
                 for b in blockRec:
-                    if pygame.Rect.colliderect(b.myHitbox, Rect((X*16)-mario.screen_scroll, (Y*16) + 8, 8, 8)):
+                    if pygame.Rect.colliderect(b.myHitbox, Rect((X*16)-mario.screen_scroll+8, (Y*16) + 8, 8, 8)):
                         grid[Y][X] = 0
                         snd_coin.play(0)
                         mario.coins +=1
                         mario.score+=100
-                if pygame.Rect.colliderect(mario.player_hitbox, Rect((X*16)-mario.screen_scroll, Y*16, 8, 8)):
+                if pygame.Rect.colliderect(mario.player_hitbox, Rect((X*16)-mario.screen_scroll+8, (Y*16) + 8, 8, 8)):
                     grid[Y][X] = 0
                     snd_coin.play(0)
                     mario.coins +=1
@@ -420,7 +428,7 @@ def updateKoopa(self):
                             if self.kickTimer > 60:
                                 self.mario.dead = True
                                 self.mario.snd_die.play(0)
-
+    
     if not self.mario.dead:
         self.X += self.kickSpeed
         if not self.squished:
@@ -439,11 +447,13 @@ class goomba:
     def __init__(self,X,Y,mario):
         self.squished = False
         self.snd_squish = pygame.mixer.Sound('smb_stomp.wav')
+        self.snd_bump = pygame.mixer.Sound('snd_kick.wav')
         self.spr_goom = pygame.image.load('spr_goom.gif')
         self.spr_goom_squish = pygame.image.load('spr_goom_squish.gif')
         self.mario = mario
         self.X = X
         self.Y = Y
+        self.bumped = False
         self.moveLeft = True
         self.ticks = 1
         self.sprite = self.spr_goom
@@ -451,6 +461,7 @@ class goomba:
         self.moveSpeed = .02
         self.hb_left = Rect(self.X-1, self.Y+16, 1,0)
         self.hb_right = Rect(self.X+17, self.Y+16, 1,0)
+        self.ySpeed = 0
 
 
 def updateGoomb(self):
@@ -460,19 +471,35 @@ def updateGoomb(self):
         self.ticks = 1
     #print(self.ticks)
 
+    if self.bumped:
+       self.Y+=self.ySpeed
+       if self.ySpeed < .15:
+           self.ySpeed +=.01
+
     self.hb_left = Rect((16* self.X)-1-self.mario.screen_scroll, (16* self.Y)+16,1,1)
     self.hb_right = Rect((16*self.X)+17-self.mario.screen_scroll, (16*self.Y)+16, 1,1)
     self.hb_leftside = Rect((16* self.X)-1-self.mario.screen_scroll, (16* self.Y)+8,1,1)
     self.hb_rightside = Rect((16*self.X)+17-self.mario.screen_scroll, (16*self.Y)+8, 1,1)
-    #pygame.draw.rect(gameDisplay,(255,255,255),self.hb_left)
+    self.hurtbox = Rect((16*self.X)-self.mario.screen_scroll, (16*self.Y)+8, 14,8)
+    #pygame.draw.rect(gameDisplay,(255,255,255),self.hurtbox)
     #pygame.draw.rect(gameDisplay,(0,255,0),self.hb_right)
 
     for b in blockRec:
             if ((pygame.Rect.colliderect(self.hb_rightside,b.myHitbox)) | (pygame.Rect.colliderect(self.hb_leftside,b.myHitbox))):
                 self.moveLeft = not self.moveLeft
+                if pygame.Rect.colliderect(b.myHitbox, self.hurtbox):
+                    if not self.bumped:
+                        self.bumped = True
+                        self.ySpeed = -.15
+                        self.squished = True
+                        self.snd_bump.stop()
+                        self.snd_bump.play(0)
+                        self.mario.score+=500
+                        self.sprite = pygame.transform.flip(self.sprite,False,True)
     for b in levelRecs:
             if ((pygame.Rect.colliderect(self.hb_rightside,b)) | (pygame.Rect.colliderect(self.hb_leftside,b))):
                 self.moveLeft = not self.moveLeft
+
 
     if self.moveLeft:
         canCont = False
@@ -519,7 +546,7 @@ def updateGoomb(self):
             self.X += .02
     
     if self.squishTimer < 60:
-        if self.squished:
+        if self.squished and not self.bumped:
             gameDisplay.blit(self.spr_goom_squish, ((self.X * 16)-self.mario.screen_scroll,((self.Y *16)))) 
         else:
             gameDisplay.blit(self.sprite, ((self.X * 16)-self.mario.screen_scroll,((self.Y *16)))) 
